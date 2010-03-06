@@ -1,0 +1,86 @@
+package com.gaojice.androsd.http;
+
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+import org.apache.http.impl.DefaultConnectionReuseStrategy;
+import org.apache.http.impl.DefaultHttpResponseFactory;
+import org.apache.http.impl.DefaultHttpServerConnection;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.params.CoreProtocolPNames;
+import org.apache.http.params.HttpParams;
+import org.apache.http.protocol.BasicHttpProcessor;
+import org.apache.http.protocol.HttpRequestHandlerRegistry;
+import org.apache.http.protocol.HttpService;
+import org.apache.http.protocol.ResponseConnControl;
+import org.apache.http.protocol.ResponseContent;
+import org.apache.http.protocol.ResponseDate;
+import org.apache.http.protocol.ResponseServer;
+
+public class RequestListenerThread extends Thread {
+
+	private final ServerSocket serversocket;
+	private final HttpParams params;
+	private final HttpService httpService;
+
+	public RequestListenerThread(int port, final String docroot)
+			throws IOException {
+		this.serversocket = new ServerSocket(port);
+		this.params = new BasicHttpParams();
+		this.params.setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 5000)
+				.setIntParameter(CoreConnectionPNames.SOCKET_BUFFER_SIZE,
+						8 * 1024).setBooleanParameter(
+						CoreConnectionPNames.STALE_CONNECTION_CHECK, false)
+				.setBooleanParameter(CoreConnectionPNames.TCP_NODELAY, true)
+				.setParameter(CoreProtocolPNames.ORIGIN_SERVER,
+						"HttpComponents/1.1");
+
+		// Set up the HTTP protocol processor
+		BasicHttpProcessor httpproc = new BasicHttpProcessor();
+		httpproc.addInterceptor(new ResponseDate());
+		httpproc.addInterceptor(new ResponseServer());
+		httpproc.addInterceptor(new ResponseContent());
+		httpproc.addInterceptor(new ResponseConnControl());
+
+		// Set up request handlers
+		HttpRequestHandlerRegistry reqistry = new HttpRequestHandlerRegistry();
+		reqistry.register("*", new HttpFileHandler(docroot));
+
+		// Set up the HTTP service
+		this.httpService = new HttpService(httpproc,
+				new DefaultConnectionReuseStrategy(),
+				new DefaultHttpResponseFactory());
+		this.httpService.setParams(this.params);
+		this.httpService.setHandlerResolver(reqistry);
+	}
+
+	public void run() {
+		System.out.println("Listening on port "
+				+ this.serversocket.getLocalPort());
+		while (!Thread.interrupted()) {
+			try {
+				// Set up HTTP connection
+				Socket socket = this.serversocket.accept();
+				DefaultHttpServerConnection conn = new DefaultHttpServerConnection();
+				System.out.println("Incoming connection from "
+						+ socket.getInetAddress());
+				conn.bind(socket, this.params);
+
+				// Start worker thread
+				Thread t = new WorkerThread(this.httpService, conn);
+				t.setDaemon(true);
+				t.start();
+			} catch (InterruptedIOException ex) {
+				break;
+			} catch (IOException e) {
+				System.err.println("I/O error initialising connection thread: "
+						+ e.getMessage());
+				break;
+			}
+		}
+	}
+
+}
