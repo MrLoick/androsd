@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.http.impl.DefaultConnectionReuseStrategy;
 import org.apache.http.impl.DefaultHttpResponseFactory;
@@ -60,6 +62,7 @@ public class RequestListenerThread extends Thread {
 	public void run() {
 		System.out.println("Listening on port "
 				+ this.serversocket.getLocalPort());
+		ExecutorService exec = Executors.newFixedThreadPool(2);
 		while (!Thread.interrupted()) {
 			try {
 				// Set up HTTP connection
@@ -72,7 +75,7 @@ public class RequestListenerThread extends Thread {
 				// Start worker thread
 				Thread t = new WorkerThread(this.httpService, conn);
 				t.setDaemon(true);
-				t.start();
+				exec.execute(t);
 			} catch (InterruptedIOException ex) {
 				break;
 			} catch (IOException e) {
@@ -81,6 +84,7 @@ public class RequestListenerThread extends Thread {
 				break;
 			}
 		}
+		exec.shutdown();
 	}
 
 }
