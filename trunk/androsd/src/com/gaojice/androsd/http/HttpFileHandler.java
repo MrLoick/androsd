@@ -137,13 +137,12 @@ public class HttpFileHandler implements HttpRequestHandler {
 
 	private void storeFile(HttpEntityEnclosingRequest request)
 			throws IllegalStateException, IOException {
-		long start =System.currentTimeMillis();
+		long start = System.currentTimeMillis();
 		int data = 0;
 		long readed = 0;
 		StringBuffer headerBuffer = new StringBuffer();
 		HttpEntity entity = request.getEntity();
-		InputStream inputStream =  entity
-				.getContent();
+		InputStream inputStream = entity.getContent();
 		while ((data = inputStream.read()) != -1) {
 			readed++;
 			char ch = (char) data;
@@ -167,28 +166,30 @@ public class HttpFileHandler implements HttpRequestHandler {
 				+ new String(filename.getBytes("ISO-8859-1"), "UTF-8");
 		File file = new File(filename);
 		OutputStream outputStream = new FileOutputStream(file);
-		int tempSize = 1024 * 8;
+		int tempSize = 1024 * 12;
 		byte[] temp = new byte[tempSize];
 		long fileByteCount = contentLength - readed - (boundaryLength + 6);
 		long fileByteLoaded = 0;
-		int count=0;
-		while(fileByteLoaded <= fileByteCount){
-			long last = fileByteCount-fileByteLoaded;
-			if(last<temp.length){
-				temp=new byte[(int) last];
-				count=inputStream.read(temp, 0, temp.length);
+		int count = 0;
+		while (fileByteLoaded <= fileByteCount) {
+			long last = fileByteCount - fileByteLoaded;
+			if (last < temp.length) {
+				temp = new byte[(int) last];
+				count = inputStream.read(temp, 0, temp.length);
 				outputStream.write(temp, 0, count);
 				outputStream.flush();
 				break;
 			}
-			if((count=inputStream.read(temp, 0, temp.length))>0){
-				fileByteLoaded+=count;
+			if ((count = inputStream.read(temp, 0, temp.length)) > 0) {
+				fileByteLoaded += count;
 				outputStream.write(temp, 0, count);
 				outputStream.flush();
 			}
 		}
 		outputStream.close();
-		System.out.println("speed: "+(fileByteCount/(System.currentTimeMillis()-start)));
+		System.out.println("speed: "
+				+ (fileByteCount / (System.currentTimeMillis() - start))
+				+ " byte/ms");
 	}
 
 	private long getBoundaryLength(String string) {
