@@ -1,9 +1,9 @@
 package com.gaojice.androsd.http;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.URISyntaxException;
@@ -21,7 +21,6 @@ import org.apache.http.MethodNotSupportedException;
 import org.apache.http.entity.ContentProducer;
 import org.apache.http.entity.EntityTemplate;
 import org.apache.http.entity.FileEntity;
-import org.apache.http.impl.io.ContentLengthInputStream;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
 
@@ -138,11 +137,12 @@ public class HttpFileHandler implements HttpRequestHandler {
 
 	private void storeFile(HttpEntityEnclosingRequest request)
 			throws IllegalStateException, IOException {
+		long start =System.currentTimeMillis();
 		int data = 0;
 		long readed = 0;
 		StringBuffer headerBuffer = new StringBuffer();
 		HttpEntity entity = request.getEntity();
-		ContentLengthInputStream inputStream = (ContentLengthInputStream) entity
+		InputStream inputStream =  entity
 				.getContent();
 		while ((data = inputStream.read()) != -1) {
 			readed++;
@@ -157,7 +157,6 @@ public class HttpFileHandler implements HttpRequestHandler {
 		}
 		long contentLength = entity.getContentLength();
 		long boundaryLength = getBoundaryLength(headerBuffer.toString());
-		long start = System.currentTimeMillis();
 		String path = Constants.ROOT_DIR + request.getRequestLine().getUri();
 		String filename = headerBuffer.substring(headerBuffer
 				.indexOf("filename=\"") + 10, headerBuffer.lastIndexOf("\""));
@@ -167,38 +166,29 @@ public class HttpFileHandler implements HttpRequestHandler {
 		filename = path + "/"
 				+ new String(filename.getBytes("ISO-8859-1"), "UTF-8");
 		File file = new File(filename);
-		FileOutputStream fileWriter = new FileOutputStream(file);
-		int tempSize = 1024 * 1024;
+		OutputStream outputStream = new FileOutputStream(file);
+		int tempSize = 1024 * 8;
 		byte[] temp = new byte[tempSize];
 		long fileByteCount = contentLength - readed - (boundaryLength + 6);
 		long fileByteLoaded = 0;
-		if (fileByteCount < tempSize) {
-			temp = new byte[(int) fileByteCount];
-			inputStream.read(temp, 0, (int) fileByteCount);
-			fileWriter.write(temp);
-		} else {
-			BufferedInputStream bufferedInputStream = new BufferedInputStream(
-					inputStream);
-			while (fileByteLoaded <= fileByteCount) {
-				bufferedInputStream.read(temp, 0, tempSize);
-				fileByteLoaded += temp.length;
-				fileWriter.write(temp);
-				fileWriter.flush();
-				if ((fileByteCount - fileByteLoaded) < tempSize) {
-					temp = new byte[(int) (fileByteCount - fileByteLoaded)];
-					bufferedInputStream.read(temp, 0,
-							(int) (fileByteCount - fileByteLoaded));
-					fileWriter.write(temp);
-					break;
-				}
+		int count=0;
+		while(fileByteLoaded <= fileByteCount){
+			long last = fileByteCount-fileByteLoaded;
+			if(last<temp.length){
+				temp=new byte[(int) last];
+				count=inputStream.read(temp, 0, temp.length);
+				outputStream.write(temp, 0, count);
+				outputStream.flush();
+				break;
 			}
-
+			if((count=inputStream.read(temp, 0, temp.length))>0){
+				fileByteLoaded+=count;
+				outputStream.write(temp, 0, count);
+				outputStream.flush();
+			}
 		}
-		System.out.println("speed: " + (fileByteCount)
-				/ (System.currentTimeMillis() - start) + "byte/ms");
-		fileWriter.flush();
-		fileWriter.close();
-
+		outputStream.close();
+		System.out.println("speed: "+(fileByteCount/(System.currentTimeMillis()-start)));
 	}
 
 	private long getBoundaryLength(String string) {
