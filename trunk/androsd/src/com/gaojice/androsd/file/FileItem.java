@@ -42,6 +42,7 @@ public class FileItem {
 	@Override
 	public String toString() {
 		return "<tr><td><a href=\"" + this.getLink() + "\">" + this.getName()
-				+ "</a></td></tr>";
+				+ "</a></td>       <td><a href=\"" + this.getLink()
+				+ "?delete=true\">删除</a></td></tr>";
 	}
 }

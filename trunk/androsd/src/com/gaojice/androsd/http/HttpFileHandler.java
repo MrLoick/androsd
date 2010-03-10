@@ -44,12 +44,17 @@ public class HttpFileHandler implements HttpRequestHandler {
 		String method = request.getRequestLine().getMethod().toUpperCase(
 				Locale.ENGLISH);
 		if (!method.equals("GET") && !method.equals("HEAD")
-				&& !method.equals("POST")) {
+				&& !method.equals("POST") && !method.equals("DELETE")) {
 			throw new MethodNotSupportedException(method
 					+ " method not supported");
 		}
 		String target = request.getRequestLine().getUri();
-
+		if (target.contains("?delete")) {
+			target = target.substring(0, target.lastIndexOf("?"));
+			File toDelete = new File(this.docRoot, URLDecoder.decode(target));
+			toDelete.delete();
+			target = target.substring(0, target.lastIndexOf("/") + 1);
+		}
 		if (request instanceof HttpEntityEnclosingRequest) {
 			storeFile((HttpEntityEnclosingRequest) request);
 
@@ -172,13 +177,17 @@ public class HttpFileHandler implements HttpRequestHandler {
 		long fileByteLoaded = 0;
 		int count = 0;
 		while (fileByteLoaded <= fileByteCount) {
-			long last = fileByteCount - fileByteLoaded;
-			if (last < temp.length) {
-				temp = new byte[(int) last];
+			long restByteCount = fileByteCount - fileByteLoaded;
+			if (restByteCount < temp.length) {
+				temp = new byte[(int) restByteCount];
 				count = inputStream.read(temp, 0, temp.length);
+				fileByteLoaded += count;
 				outputStream.write(temp, 0, count);
 				outputStream.flush();
-				break;
+				if (fileByteLoaded == fileByteCount) {
+					break;
+				}
+				continue;
 			}
 			if ((count = inputStream.read(temp, 0, temp.length)) > 0) {
 				fileByteLoaded += count;
