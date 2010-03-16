@@ -45,10 +45,6 @@ public class FileItem {
 				+ this.getLink() + "\">" + this.getName()
 				+ "</a></td>       <td>");
 
-		if (this.isFile) {
-			stringBuffer.append("<a href=\"" + this.getLink()
-					+ "?delete=true\">删除</a>");
-		}
 		stringBuffer.append("</td></tr>");
 		return stringBuffer.toString();
 	}
