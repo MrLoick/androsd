@@ -49,12 +49,6 @@ public class HttpFileHandler implements HttpRequestHandler {
 					+ " method not supported");
 		}
 		String target = request.getRequestLine().getUri();
-		if (target.contains("?delete")) {
-			target = target.substring(0, target.lastIndexOf("?"));
-			File toDelete = new File(this.docRoot, URLDecoder.decode(target));
-			toDelete.delete();
-			target = target.substring(0, target.lastIndexOf("/") + 1);
-		}
 		if (request instanceof HttpEntityEnclosingRequest) {
 			storeFile((HttpEntityEnclosingRequest) request);
 
@@ -98,8 +92,8 @@ public class HttpFileHandler implements HttpRequestHandler {
 					}
 					String html = null;
 					try {
-						html = UiTemplate.generateHtml(file.getName(), tds
-								.toString());
+						html = UiTemplate.generateHtml(file.getAbsolutePath(),
+								tds.toString());
 					} catch (URISyntaxException e) {
 						e.printStackTrace();
 					}

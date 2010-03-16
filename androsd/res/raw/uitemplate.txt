@@ -12,6 +12,7 @@
         
     </head>
     <body>
+    ${dir}<br>
     <form action="${dir}" enctype="MULTIPART/FORM-DATA" method=post>
     	<input type="file" name="filename" />
     	<input type="submit" value="上传" />
